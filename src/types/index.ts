@@ -4,7 +4,8 @@ export interface Point {
   y: number;
   clusterId: number;
   isCentroid: boolean;
-  originalValue?: string; // For categorical data
+  originalValue?: string; // Para dados categóricos
+  numericValue?: number; // Valor convertido para uso em KNN
 }
 
 export interface Cluster {

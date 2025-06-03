@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Point } from './types';
 import { calculateCentroid, findNearestCluster, calculateEuclideanDistance } from './utils/distance';
 import { CircleDot, Trash2, Plus, Minus, RefreshCw, HelpCircle } from 'lucide-react';
+import { categoricalToNumeric } from './utils/distance';
 
 function App() {
   const [points, setPoints] = useState<Point[]>([]);
@@ -9,6 +10,15 @@ function App() {
   const [numClusters, setNumClusters] = useState(2);
   const [isRunning, setIsRunning] = useState(false);
   const [showHelp, setShowHelp] = useState(true);
+  const [popupStep, setPopupStep] = useState(0);
+  const [showPopup, setShowPopup] = useState(true);
+  const [popupShown, setPopupShown] = useState(false); // novo controle
+  const [dispersionThreshold, setDispersionThreshold] = useState(120); // limiar de dispersão (ajustável)
+  const [showDispersionTutorial, setShowDispersionTutorial] = useState(false);
+  const [categoricalValue, setCategoricalValue] = useState('');
+  const [showKnnTutorial, setShowKnnTutorial] = useState(false);
+  const [lastCategorical, setLastCategorical] = useState('');
+  const [lastNumericValue, setLastNumericValue] = useState<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const colors = [
@@ -59,7 +69,8 @@ function App() {
         for (let y = 0; y < canvas.height; y += 10) {
           const point = { x, y, id: '', clusterId: 0, isCentroid: false };
           const clusterId = findNearestCluster(point, clusters);
-          ctx.fillStyle = `${colors[clusterId % colors.length]}10`;
+          // Cor mais forte (opacidade maior)
+          ctx.fillStyle = `${colors[clusterId % colors.length]}55`;
           ctx.fillRect(x, y, 10, 10);
         }
       }
@@ -111,11 +122,17 @@ function App() {
 
     setPoints([...points, newPoint]);
     setShowHelp(false);
+    // Mostra o pop-up tutorial só na primeira vez que um ponto é adicionado
+    if (!popupShown && points.length === 0) {
+      setPopupStep(1);
+      setShowPopup(true);
+      setPopupShown(true);
+    }
   };
 
   const initializeClusters = () => {
     if (points.length < numClusters) {
-      alert('Add more points before initializing clusters!');
+      alert('Adicione mais pontos antes de inicializar os grupos!');
       return;
     }
 
@@ -136,6 +153,37 @@ function App() {
     }));
 
     setPoints(updatedPoints);
+  };
+
+  // Função para analisar dispersão e criar novo cluster
+  const analyzeDispersionAndSplit = () => {
+    let moved = false;
+    let newClusters = [...clusters];
+    let newPoints = [...points];
+    let nextClusterId = clusters.length;
+    clusters.forEach((centroid) => {
+      const clusterPoints = newPoints.filter(p => p.clusterId === centroid.clusterId && !p.isCentroid);
+      // Encontrar pontos distantes do centróide
+      const distantPoints = clusterPoints.filter(p => calculateEuclideanDistance(p, centroid) > dispersionThreshold);
+      if (distantPoints.length > 0) {
+        moved = true;
+        // Criar novo cluster para os pontos distantes
+        const newCentroid = calculateCentroid(distantPoints);
+        newCentroid.clusterId = nextClusterId;
+        newCentroid.isCentroid = true;
+        newClusters.push(newCentroid);
+        // Atualizar clusterId dos pontos
+        newPoints = newPoints.map(p =>
+          distantPoints.includes(p) ? { ...p, clusterId: nextClusterId } : p
+        );
+        nextClusterId++;
+      }
+    });
+    if (moved) {
+      setClusters(newClusters);
+      setPoints(newPoints);
+      setShowDispersionTutorial(true);
+    }
   };
 
   const runKMeans = () => {
@@ -166,116 +214,294 @@ function App() {
     setTimeout(() => {
       clearInterval(interval);
       setIsRunning(false);
+      // Após o agrupamento, analisar dispersão
+      analyzeDispersionAndSplit();
     }, 3000);
   };
 
-  const clearCanvas = () => {
+  const handleClearPoints = () => {
     setPoints([]);
     setClusters([]);
-    setShowHelp(true);
+  };
+
+  // Pop-ups explicativos
+  const popups = [
+    {
+      title: 'O que é um Cluster?',
+      text: 'Um cluster é um grupo de pontos que possuem características parecidas. Aqui, cada grupo será representado por uma cor diferente. Experimente adicionar mais pontos!'
+    },
+    {
+      title: 'Como funciona?',
+      text: 'O algoritmo K-means agrupa os pontos de acordo com a proximidade. Cada grupo tem um centroide (círculo maior), que é o “coração” do grupo. Você pode ajustar o número de grupos e ver como os pontos se organizam!'
+    },
+    {
+      title: 'Na prática',
+      text: 'Clusters são usados para segmentar clientes, identificar padrões e muito mais. Clique em "Agrupar Pontos" para ver a mágica acontecer!'
+    }
+  ];
+
+  const helpText = (
+    <div className="space-y-4">
+      <h2 className="text-xl font-bold mb-4">🎮 Como Brincar com os Grupos</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <p className="flex items-center gap-2 font-semibold mb-2">
+            <CircleDot className="w-5 h-5" /> Adicionar Pontos
+          </p>
+          <p className="text-sm">Como colocar bolinhas de gude no chão - clique onde quiser!</p>
+        </div>
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <p className="flex items-center gap-2 font-semibold mb-2">
+            <Plus className="w-5 h-5" />/<Minus className="w-5 h-5" /> Ajustar Grupos
+          </p>
+          <p className="text-sm">Como decidir quantas equipes terá na brincadeira</p>
+        </div>
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <p className="flex items-center gap-2 font-semibold mb-2">
+            <RefreshCw className="w-5 h-5" /> Agrupar
+          </p>
+          <p className="text-sm">Como mágica, os pontos se organizam em times!</p>
+        </div>
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <p className="flex items-center gap-2 font-semibold mb-2">
+            <Trash2 className="w-5 h-5" /> Recomeçar
+          </p>
+          <p className="text-sm">Como limpar o quadro para começar de novo</p>
+        </div>
+      </div>
+      <div className="mt-4 bg-yellow-50 p-4 rounded-lg">
+        <h3 className="font-semibold mb-2">🎨 O Significado das Cores:</h3>
+        <p className="text-sm">
+          • Cada cor é como um time diferente<br/>
+          • Os círculos grandes (⭕) são como os capitães dos times<br/>
+          • Os círculos pequenos (●) são os jogadores do time
+        </p>
+      </div>
+    </div>
+  );
+
+  // Tutorial visual para dispersão
+  const dispersionTutorial = (
+    <div className="absolute left-1/2 -translate-x-1/2 top-10 z-50 bg-white border border-pink-300 shadow-xl rounded-xl p-6 max-w-md flex flex-col items-center animate-fade-in">
+      <h2 className="text-lg font-bold mb-2 text-pink-700">🎉 Novo Grupo Formado!</h2>
+      <div className="mb-4 text-center space-y-4">
+        <p className="text-gray-700">
+          <span className="font-semibold">É como em uma festa quando...</span>
+        </p>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="bg-pink-50 p-3 rounded-lg">
+            <p>👥 Um grupo de amigos</p>
+            <p>começou falando de trabalho...</p>
+          </div>
+          <div className="bg-pink-50 p-3 rounded-lg">
+            <p>💡 Mas alguns começaram</p>
+            <p>a falar de hobbies...</p>
+          </div>
+          <div className="bg-pink-50 p-3 rounded-lg">
+            <p>🔄 Naturalmente, eles</p>
+            <p>formaram uma nova rodinha!</p>
+          </div>
+          <div className="bg-pink-50 p-3 rounded-lg">
+            <p>✨ Assim nosso algoritmo</p>
+            <p>cria novos grupos também!</p>
+          </div>
+        </div>
+      </div>
+      <button
+        className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
+        onClick={() => setShowDispersionTutorial(false)}
+      >Legal, Entendi!</button>
+    </div>
+  );
+
+  // Tutorial visual para KNN
+  const knnTutorial = (
+    <div className="absolute left-1/2 -translate-x-1/2 top-24 z-50 bg-white border border-green-300 shadow-xl rounded-xl p-6 max-w-md flex flex-col items-center animate-fade-in">
+      <h2 className="text-lg font-bold mb-2 text-green-700">🔄 Convertendo Texto em Números</h2>
+      <div className="mb-4 text-center space-y-4">
+        <p className="text-gray-700">
+          É como dar notas para características:
+        </p>
+        <div className="bg-green-50 p-4 rounded-lg space-y-3">
+          <div className="flex items-center justify-between">
+            <span>📝 Seu texto: </span>
+            <span className="font-bold">{lastCategorical || 'Exemplo'}</span>
+          </div>
+          <div className="flex items-center justify-center">
+            <span className="text-2xl">⬇️</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>🔢 Virou o número: </span>
+            <span className="font-bold text-green-600">{lastNumericValue}</span>
+          </div>
+        </div>
+        <p className="text-sm text-gray-600 mt-2">
+          Como classificar filmes por gênero:<br/>
+          "Ação" ➡️ 1<br/>
+          "Comédia" ➡️ 2<br/>
+          "Drama" ➡️ 3
+        </p>
+      </div>
+      <button
+        className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+        onClick={() => setShowKnnTutorial(false)}
+      >Agora Entendi!</button>
+    </div>
+  );
+
+  const handleAddCategoricalPoint = () => {
+    if (!categoricalValue.trim()) return;
+    const numericValue = categoricalToNumeric(categoricalValue);
+    setLastCategorical(categoricalValue);
+    setLastNumericValue(numericValue);
+    const newPoint: Point = {
+      id: `cat-point-${Date.now()}`,
+      x: Math.random() * 700 + 50, // posição aleatória
+      y: Math.random() * 500 + 50,
+      clusterId: clusters.length > 0 ? findNearestCluster({ x: 0, y: 0 } as Point, clusters) : 0,
+      isCentroid: false,
+      originalValue: categoricalValue,
+      numericValue,
+    };
+    setPoints([...points, newPoint]);
+    setCategoricalValue('');
+    // Mostra o tutorial de KNN apenas na primeira vez que um valor categórico é adicionado
+    if (!points.some(p => p.originalValue)) {
+      setShowKnnTutorial(true);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <CircleDot className="w-6 h-6" />
-              K-means Clustering Visualization
-            </h1>
-            <button
-              onClick={() => setShowHelp(!showHelp)}
-              className="p-2 rounded hover:bg-gray-100 transition-colors"
-              title="Toggle Help"
-            >
-              <HelpCircle className="w-5 h-5" />
-            </button>
-          </div>
-
-          {showHelp && (
-            <div className="mb-4 p-4 bg-blue-50 rounded-lg text-sm">
-              <h2 className="font-semibold mb-2">How to use:</h2>
-              <ol className="list-decimal list-inside space-y-1">
-                <li>Click anywhere on the canvas to add data points</li>
-                <li>Use + and - to adjust the number of clusters (K)</li>
-                <li>Click "Initialize Clusters" to start the clustering process</li>
-                <li>Click "Run K-means" to optimize the clusters</li>
-                <li>Use "Clear" to start over</li>
-              </ol>
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div className="bg-white rounded-lg p-6 shadow-lg relative">
+          {showDispersionTutorial && dispersionTutorial}
+          {showKnnTutorial && knnTutorial}
+          {/* Pop-up explicativo */}
+          {showPopup && popupStep < popups.length && (
+            <div className="absolute left-1/2 -translate-x-1/2 top-2 z-50 bg-white border border-blue-300 shadow-xl rounded-xl p-6 max-w-md flex flex-col items-center animate-fade-in">
+              <h2 className="text-lg font-bold mb-2 text-blue-700">{popups[popupStep].title}</h2>
+              <p className="text-gray-700 mb-4 text-center">{popups[popupStep].text}</p>
+              <button
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                onClick={() => {
+                  if (popupStep < popups.length - 1) {
+                    setPopupStep(popupStep + 1);
+                  } else {
+                    setShowPopup(false);
+                  }
+                }}
+              >
+                {popupStep < popups.length - 1 ? 'Próximo' : 'Entendi!'}
+              </button>
             </div>
           )}
+
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl font-bold text-gray-800">Visualização de Clusters K-means</h1>
+            <button
+              onClick={() => setShowHelp(!showHelp)}
+              className="text-gray-600 hover:text-gray-800"
+              title="Ajuda"
+            >
+              <HelpCircle className="w-6 h-6" />
+            </button>
+          </div>
           
-          <div className="mb-4 flex items-center gap-4">
-            <button
-              onClick={() => setNumClusters(Math.max(2, numClusters - 1))}
-              className="p-2 rounded bg-gray-200 hover:bg-gray-300 transition-colors disabled:opacity-50"
-              disabled={isRunning}
-              title="Decrease number of clusters"
-            >
-              <Minus className="w-4 h-4" />
-            </button>
-            <span className="font-medium">Clusters (K): {numClusters}</span>
-            <button
-              onClick={() => setNumClusters(Math.min(8, numClusters + 1))}
-              className="p-2 rounded bg-gray-200 hover:bg-gray-300 transition-colors disabled:opacity-50"
-              disabled={isRunning}
-              title="Increase number of clusters"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-            
-            <button
-              onClick={runKMeans}
-              className="ml-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors flex items-center gap-2 disabled:opacity-50"
-              disabled={isRunning || points.length === 0}
-            >
-              <RefreshCw className={`w-4 h-4 ${isRunning ? 'animate-spin' : ''}`} />
-              {clusters.length === 0 ? 'Initialize Clusters' : 'Run K-means'}
-            </button>
-            
-            <button
-              onClick={clearCanvas}
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors flex items-center gap-2 disabled:opacity-50"
-              disabled={isRunning}
-            >
-              <Trash2 className="w-4 h-4" />
-              Clear
-            </button>
-          </div>
+          {showHelp && (
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg text-gray-700">
+              {helpText}
+            </div>
+          )}
 
-          <div className="relative">
-            <canvas
-              ref={canvasRef}
-              width={800}
-              height={500}
-              onClick={handleCanvasClick}
-              className="border border-gray-300 rounded-lg cursor-crosshair bg-white"
-            />
-            {points.length === 0 && (
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-gray-400 text-center">
-                <CircleDot className="w-8 h-8 mx-auto mb-2" />
-                Click anywhere to add points
+          <div className="flex flex-col items-center space-y-4">
+            <div className="relative">
+              <canvas
+                ref={canvasRef}
+                width={800}
+                height={600}
+                onClick={handleCanvasClick}
+                className="border border-gray-200 rounded-lg cursor-crosshair bg-white"
+              />
+              <div className="absolute top-4 left-4 text-sm text-gray-500">
+                Clique para adicionar pontos
               </div>
-            )}
-          </div>
+            </div>
 
-          <div className="mt-4 grid grid-cols-4 gap-2">
-            {clusters.map((cluster, index) => (
-              <div
-                key={cluster.id}
-                className="flex items-center gap-2 p-2 rounded-lg"
-                style={{ backgroundColor: `${colors[index % colors.length]}10` }}
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => handleClearPoints()}
+                className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50"
+                disabled={isRunning || points.length === 0}
               >
-                <div
-                  className="w-4 h-4 rounded-full"
-                  style={{ backgroundColor: colors[index % colors.length] }}
-                />
-                <span className="text-sm">
-                  Cluster {index + 1}: {points.filter(p => p.clusterId === index).length} points
-                </span>
+                <Trash2 className="w-5 h-5" />
+                Limpar Pontos
+              </button>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setNumClusters(Math.max(2, numClusters - 1))}
+                  className="p-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+                  disabled={isRunning || numClusters <= 2}
+                >
+                  <Minus className="w-5 h-5" />
+                </button>
+                <span className="text-lg font-medium w-8 text-center">{numClusters}</span>
+                <button
+                  onClick={() => setNumClusters(Math.min(8, numClusters + 1))}
+                  className="p-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+                  disabled={isRunning || numClusters >= 8}
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+                <span className="ml-2">Número de Grupos</span>
               </div>
-            ))}
+
+              <button
+                onClick={() => runKMeans()}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+                disabled={isRunning || points.length < numClusters}
+              >
+                <RefreshCw className={`w-5 h-5 ${isRunning ? 'animate-spin' : ''}`} />
+                {isRunning ? 'Processando...' : 'Agrupar Pontos'}
+              </button>
+            </div>
+
+            <div className="flex flex-col md:flex-row items-center gap-4 mt-6">
+              <label className="flex items-center gap-2">
+                <span className="text-sm text-gray-700">Limiar de dispersão:</span>
+                <input
+                  type="range"
+                  min={50}
+                  max={300}
+                  value={dispersionThreshold}
+                  onChange={e => setDispersionThreshold(Number(e.target.value))}
+                  className="w-40 accent-pink-500"
+                />
+                <span className="text-pink-600 font-bold">{dispersionThreshold}px</span>
+              </label>
+              <span className="text-xs text-gray-500">Ajuste para controlar quando um novo cluster será criado automaticamente.</span>
+            </div>
+            <div className="flex flex-col md:flex-row items-center gap-4 mt-6">
+              <label className="flex items-center gap-2">
+                <span className="text-sm text-gray-700">Valor categórico (opcional):</span>
+                <input
+                  type="text"
+                  value={categoricalValue}
+                  onChange={e => setCategoricalValue(e.target.value)}
+                  placeholder="Ex: Azul, Cliente A, etc."
+                  className="border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-300"
+                  maxLength={20}
+                />
+                <button
+                  onClick={handleAddCategoricalPoint}
+                  className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+                >Adicionar</button>
+              </label>
+              {lastNumericValue !== null && (
+                <span className="text-xs text-green-700">Último valor convertido: <b>{lastNumericValue}</b></span>
+              )}
+            </div>
           </div>
         </div>
       </div>

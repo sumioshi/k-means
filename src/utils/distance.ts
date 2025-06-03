@@ -40,3 +40,9 @@ export function findNearestCluster(point: Point, clusters: Point[]): number {
 
   return nearestClusterId;
 }
+
+// Conversão de valor categórico para quantitativo (hash simples)
+export function categoricalToNumeric(value: string): number {
+  // Exemplo: soma dos códigos char
+  return value.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+}
