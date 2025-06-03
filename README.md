@@ -88,12 +88,6 @@ Imagine uma festa cheia de pessoas. Naturalmente, elas vão formando "rodinhas" 
 
 ---
 
-## Prints da aplicação
-
-> (Adicione aqui prints ou GIFs do funcionamento para deixar ainda mais visual!)
-
----
-
 ## Licença
 
 Este projeto é livre para fins acadêmicos e de aprendizado.
