@@ -12,8 +12,8 @@ function App() {
   const [showHelp, setShowHelp] = useState(true);
   const [popupStep, setPopupStep] = useState(0);
   const [showPopup, setShowPopup] = useState(true);
-  const [popupShown, setPopupShown] = useState(false); // novo controle
-  const [dispersionThreshold, setDispersionThreshold] = useState(120); // limiar de dispersão (ajustável)
+  const [popupShown, setPopupShown] = useState(false);
+  const [dispersionThreshold, setDispersionThreshold] = useState(120);
   const [showDispersionTutorial, setShowDispersionTutorial] = useState(false);
   const [categoricalValue, setCategoricalValue] = useState('');
   const [showKnnTutorial, setShowKnnTutorial] = useState(false);
@@ -22,14 +22,14 @@ function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const colors = [
-    '#FF6B6B', // Red
-    '#4ECDC4', // Teal
-    '#45B7D1', // Blue
-    '#96CEB4', // Green
-    '#FFEEAD', // Yellow
-    '#D4A5A5', // Pink
-    '#9B59B6', // Purple
-    '#3498DB', // Light Blue
+    '#FF6B6B',
+    '#4ECDC4',
+    '#45B7D1',
+    '#96CEB4',
+    '#FFEEAD',
+    '#D4A5A5',
+    '#9B59B6',
+    '#3498DB',
   ];
 
   useEffect(() => {
@@ -43,10 +43,8 @@ function App() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw grid lines
     ctx.strokeStyle = '#f0f0f0';
     ctx.lineWidth = 1;
     for (let i = 0; i <= canvas.width; i += 50) {
@@ -62,21 +60,17 @@ function App() {
       ctx.stroke();
     }
 
-    // Draw cluster regions if clusters exist
     if (clusters.length > 0) {
-      // Create Voronoi-like regions
       for (let x = 0; x < canvas.width; x += 10) {
         for (let y = 0; y < canvas.height; y += 10) {
           const point = { x, y, id: '', clusterId: 0, isCentroid: false };
           const clusterId = findNearestCluster(point, clusters);
-          // Cor mais forte (opacidade maior)
           ctx.fillStyle = `${colors[clusterId % colors.length]}55`;
           ctx.fillRect(x, y, 10, 10);
         }
       }
     }
 
-    // Draw points
     points.forEach((point) => {
       ctx.beginPath();
       ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI);
@@ -87,7 +81,6 @@ function App() {
       ctx.stroke();
     });
 
-    // Draw centroids
     clusters.forEach((centroid, index) => {
       ctx.beginPath();
       ctx.arc(centroid.x, centroid.y, 8, 0, 2 * Math.PI);
@@ -97,7 +90,6 @@ function App() {
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Draw centroid label
       ctx.font = '14px Arial';
       ctx.fillStyle = '#000';
       ctx.textAlign = 'center';
@@ -122,7 +114,6 @@ function App() {
 
     setPoints([...points, newPoint]);
     setShowHelp(false);
-    // Mostra o pop-up tutorial só na primeira vez que um ponto é adicionado
     if (!popupShown && points.length === 0) {
       setPopupStep(1);
       setShowPopup(true);
@@ -136,7 +127,6 @@ function App() {
       return;
     }
 
-    // Randomly select initial centroids from existing points
     const shuffled = [...points].sort(() => 0.5 - Math.random());
     const initialCentroids = shuffled.slice(0, numClusters).map((point, index) => ({
       ...point,
@@ -146,7 +136,6 @@ function App() {
 
     setClusters(initialCentroids);
 
-    // Assign points to nearest cluster
     const updatedPoints = points.map((point) => ({
       ...point,
       clusterId: findNearestCluster(point, initialCentroids),
@@ -155,7 +144,6 @@ function App() {
     setPoints(updatedPoints);
   };
 
-  // Função para analisar dispersão e criar novo cluster
   const analyzeDispersionAndSplit = () => {
     let moved = false;
     let newClusters = [...clusters];
@@ -163,16 +151,13 @@ function App() {
     let nextClusterId = clusters.length;
     clusters.forEach((centroid) => {
       const clusterPoints = newPoints.filter(p => p.clusterId === centroid.clusterId && !p.isCentroid);
-      // Encontrar pontos distantes do centróide
       const distantPoints = clusterPoints.filter(p => calculateEuclideanDistance(p, centroid) > dispersionThreshold);
       if (distantPoints.length > 0) {
         moved = true;
-        // Criar novo cluster para os pontos distantes
         const newCentroid = calculateCentroid(distantPoints);
         newCentroid.clusterId = nextClusterId;
         newCentroid.isCentroid = true;
         newClusters.push(newCentroid);
-        // Atualizar clusterId dos pontos
         newPoints = newPoints.map(p =>
           distantPoints.includes(p) ? { ...p, clusterId: nextClusterId } : p
         );
@@ -194,13 +179,11 @@ function App() {
 
     setIsRunning(true);
     const interval = setInterval(() => {
-      // Calculate new centroids
       const newCentroids = clusters.map((_, index) => {
         const clusterPoints = points.filter((p) => p.clusterId === index);
         return calculateCentroid(clusterPoints);
       });
 
-      // Reassign points to nearest centroid
       const updatedPoints = points.map((point) => ({
         ...point,
         clusterId: findNearestCluster(point, newCentroids),
@@ -210,11 +193,9 @@ function App() {
       setPoints(updatedPoints);
     }, 500);
 
-    // Stop after a few iterations
     setTimeout(() => {
       clearInterval(interval);
       setIsRunning(false);
-      // Após o agrupamento, analisar dispersão
       analyzeDispersionAndSplit();
     }, 3000);
   };
@@ -224,7 +205,6 @@ function App() {
     setClusters([]);
   };
 
-  // Pop-ups explicativos
   const popups = [
     {
       title: 'O que é um Cluster?',
@@ -280,7 +260,6 @@ function App() {
     </div>
   );
 
-  // Tutorial visual para dispersão
   const dispersionTutorial = (
     <div className="absolute left-1/2 -translate-x-1/2 top-10 z-50 bg-white border border-pink-300 shadow-xl rounded-xl p-6 max-w-md flex flex-col items-center animate-fade-in">
       <h2 className="text-lg font-bold mb-2 text-pink-700">🎉 Novo Grupo Formado!</h2>
@@ -314,7 +293,6 @@ function App() {
     </div>
   );
 
-  // Tutorial visual para KNN
   const knnTutorial = (
     <div className="absolute left-1/2 -translate-x-1/2 top-24 z-50 bg-white border border-green-300 shadow-xl rounded-xl p-6 max-w-md flex flex-col items-center animate-fade-in">
       <h2 className="text-lg font-bold mb-2 text-green-700">🔄 Convertendo Texto em Números</h2>
@@ -356,7 +334,7 @@ function App() {
     setLastNumericValue(numericValue);
     const newPoint: Point = {
       id: `cat-point-${Date.now()}`,
-      x: Math.random() * 700 + 50, // posição aleatória
+      x: Math.random() * 700 + 50,
       y: Math.random() * 500 + 50,
       clusterId: clusters.length > 0 ? findNearestCluster({ x: 0, y: 0 } as Point, clusters) : 0,
       isCentroid: false,
@@ -365,7 +343,6 @@ function App() {
     };
     setPoints([...points, newPoint]);
     setCategoricalValue('');
-    // Mostra o tutorial de KNN apenas na primeira vez que um valor categórico é adicionado
     if (!points.some(p => p.originalValue)) {
       setShowKnnTutorial(true);
     }
