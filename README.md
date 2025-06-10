@@ -72,6 +72,34 @@ Imagine uma festa cheia de pessoas. Naturalmente, elas vão formando "rodinhas" 
 
 ---
 
+## Localização do Algoritmo K-means no Código 🔍
+
+### Arquivo Principal: `src/App.tsx`
+- **`runKMeans()`**: Implementação principal do algoritmo
+  - Calcula novos centroides
+  - Reagrupa pontos pelo centroide mais próximo
+  - Executa iterações até convergir
+- **`initializeClusters()`**: Inicialização dos clusters com centroides aleatórios
+- **`analyzeDispersionAndSplit()`**: Análise automática de dispersão para criar novos clusters
+
+### Funções Matemáticas: `src/utils/distance.ts`
+- **`calculateEuclideanDistance()`**: Calcula distância euclidiana entre dois pontos
+- **`calculateCentroid()`**: Calcula o centro (centroide) de um grupo de pontos
+- **`findNearestCluster()`**: Encontra o cluster mais próximo de um ponto dado
+- **`categoricalToNumeric()`**: Converte dados categóricos em valores numéricos
+
+### Tipos de Dados: `src/types/index.ts`
+- **`Point`**: Interface que define a estrutura de um ponto
+- **`Cluster`**: Interface que define a estrutura de um cluster
+
+### Fluxo do Algoritmo:
+1. **Inicialização** → Escolha aleatória de centroides iniciais
+2. **Iteração** → Recálculo de centroides + reagrupamento de pontos
+3. **Convergência** → Algoritmo para quando clusters se estabilizam
+4. **Análise** → Criação automática de novos clusters se necessário
+
+---
+
 ## Tecnologias Utilizadas
 - React + TypeScript
 - Tailwind CSS
