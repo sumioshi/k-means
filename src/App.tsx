@@ -32,6 +32,9 @@ function App() {
     '#3498DB'
   ], []);
 
+  const CANVAS_WIDTH = 800;
+  const CANVAS_HEIGHT = 600;
+
   useEffect(() => {
     drawCanvas();
   }, [points, clusters]);
@@ -395,8 +398,8 @@ function App() {
             <div className="relative">
               <canvas
                 ref={canvasRef}
-                width={800}
-                height={600}
+                width={CANVAS_WIDTH}
+                height={CANVAS_HEIGHT}
                 onClick={handleCanvasClick}
                 className="border border-gray-200 rounded-lg cursor-crosshair bg-white"
               />
