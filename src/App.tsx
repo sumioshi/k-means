@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Point } from './types';
 import { calculateCentroid, findNearestCluster, calculateEuclideanDistance } from './utils/distance';
 import { CircleDot, Trash2, Plus, Minus, RefreshCw, HelpCircle } from 'lucide-react';
@@ -21,7 +21,7 @@ function App() {
   const [lastNumericValue, setLastNumericValue] = useState<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const colors = [
+  const colors = useMemo(() => [
     '#FF6B6B',
     '#4ECDC4', 
     '#45B7D1',
@@ -30,7 +30,7 @@ function App() {
     '#D4A5A5',
     '#9B59B6',
     '#3498DB'
-  ];
+  ], []);
 
   useEffect(() => {
     drawCanvas();
